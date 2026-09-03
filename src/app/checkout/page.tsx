@@ -4,30 +4,57 @@ import { useState } from "react";
 import { useCartStore } from "@/store/cartStore";
 import { formatarPreco } from "@/lib/utils";
 
-// -----------------------------------------------------------------------------
-// Este formulário simula o passo de checkout. Para produção, ao confirmar:
-// 1. Crie o pedido no seu banco (status "aguardando_pagamento").
-// 2. Chame a API do gateway escolhido (Mercado Pago/Asaas/Pagar.me) para gerar
-//    a cobrança (Pix, cartão, boleto).
-// 3. Redirecione a cliente para a tela/QR code de pagamento retornada pelo gateway.
-// 4. O webhook em /api/pagamento/webhook confirmará o pagamento automaticamente.
-// -----------------------------------------------------------------------------
-
 export default function CheckoutPage() {
   const { itens, totalValor, limparCarrinho } = useCartStore();
   const [enviando, setEnviando] = useState(false);
   const [pedidoConfirmado, setPedidoConfirmado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   async function finalizarPedido(e: React.FormEvent) {
     e.preventDefault();
     setEnviando(true);
+    setErro(null);
 
-    // Simulação de chamada ao backend / gateway de pagamento.
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    try {
+      const form = e.target as HTMLFormElement;
+      const formData = new FormData(form);
+
+      const endereco = `${formData.get('endereco') || ''}`;
+      const metodoPagamento = `${formData.get('pagamento') || 'pix'}`;
+
+      const res = await fetch('/api/pedidos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itens: itens.map((item) => ({
+            produtoId: item.produtoId,
+            slug: item.slug,
+            nome: item.nome,
+            imagem: item.imagem,
+            preco: item.preco,
+            tamanho: item.tamanho,
+            quantidade: item.quantidade,
+          })),
+          enderecoEntrega: endereco,
+          metodoPagamento,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErro(data.error || 'Erro ao criar pedido.');
+        setEnviando(false);
+        return;
+      }
+
+      setPedidoConfirmado(true);
+      limparCarrinho();
+    } catch {
+      setErro('Erro de conexão. Tente novamente.');
+    }
 
     setEnviando(false);
-    setPedidoConfirmado(true);
-    limparCarrinho();
   }
 
   if (pedidoConfirmado) {
@@ -57,6 +84,7 @@ export default function CheckoutPage() {
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">Nome completo</label>
           <input
+            name="nome"
             required
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
@@ -65,6 +93,7 @@ export default function CheckoutPage() {
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">E-mail</label>
           <input
+            name="email"
             type="email"
             required
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
@@ -74,6 +103,7 @@ export default function CheckoutPage() {
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">Endereço de entrega</label>
           <input
+            name="endereco"
             required
             placeholder="Rua, número, bairro, cidade - UF"
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
@@ -82,11 +112,15 @@ export default function CheckoutPage() {
 
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">Forma de pagamento</label>
-          <select className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none">
+          <select name="pagamento" className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none">
             <option value="pix">Pix</option>
             <option value="cartao">Cartão de crédito</option>
           </select>
         </div>
+
+        {erro && (
+          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{erro}</p>
+        )}
 
         <button
           type="submit"
