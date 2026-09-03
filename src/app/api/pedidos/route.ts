@@ -30,10 +30,12 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse request body
     const body = await request.json();
-    const { itens, enderecoEntrega, metodoPagamento } = body as {
+    const { itens, enderecoEntrega, metodoPagamento, cupomCodigo, desconto } = body as {
       itens: CartItem[];
-      enderecoEntrega: string;
+      enderecoEntrega: Record<string, string> | string;
       metodoPagamento: string;
+      cupomCodigo: string | null;
+      desconto: number | null;
     };
 
     if (!itens || itens.length === 0) {
@@ -56,7 +58,8 @@ export async function POST(request: NextRequest) {
       0
     );
     const valorFrete = 0; // TODO: calcular frete real
-    const valorTotal = valorSubtotal + valorFrete;
+    const valorDesconto = desconto || 0;
+    const valorTotal = Math.max(valorSubtotal + valorFrete - valorDesconto, 0);
 
     // 4. Create the order using admin client (bypasses RLS)
     const admin = createAdminClient();
@@ -99,6 +102,28 @@ export async function POST(request: NextRequest) {
     if (itensError) {
       console.error("[pedidos] Erro ao criar itens do pedido:", itensError);
       // Order was created but items failed — still return success with warning
+    }
+
+    // 6. Increment coupon usage count
+    if (cupomCodigo && valorDesconto > 0) {
+      await admin.rpc("incrementar_uso_cupom", { p_codigo: cupomCodigo }).then(({ error: rpcError }) => {
+        if (rpcError) {
+          // Fallback: manual update
+          admin
+            .from("cupons")
+            .select("id, uso_atual")
+            .eq("codigo", cupomCodigo)
+            .single()
+            .then(({ data: cupom }) => {
+              if (cupom) {
+                admin
+                  .from("cupons")
+                  .update({ uso_atual: cupom.uso_atual + 1 })
+                  .eq("id", cupom.id);
+              }
+            });
+        }
+      });
     }
 
     return NextResponse.json({

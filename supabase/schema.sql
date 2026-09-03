@@ -123,6 +123,22 @@ CREATE TABLE IF NOT EXISTS carrinho (
   UNIQUE (usuario_id, produto_id, tamanho)
 );
 
+-- 11. TABELA DE CUPONS
+CREATE TABLE IF NOT EXISTS cupons (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  codigo TEXT UNIQUE NOT NULL,
+  descricao TEXT,
+  desconto_percentual INTEGER CHECK (desconto_percentual BETWEEN 1 AND 100),
+  desconto_fixo DECIMAL(10,2) CHECK (desconto_fixo > 0),
+  valor_minimo DECIMAL(10,2) DEFAULT 0,
+  uso_maximo INTEGER DEFAULT 1,
+  uso_atual INTEGER DEFAULT 0,
+  data_inicio TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  data_fim TIMESTAMPTZ NOT NULL,
+  ativo BOOLEAN DEFAULT true,
+  criado_em TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- =====================================================
 -- INDEXES para performance
 -- =====================================================
@@ -134,6 +150,8 @@ CREATE INDEX IF NOT EXISTS idx_pedidos_usuario ON pedidos(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_pedidos_status ON pedidos(status);
 CREATE INDEX IF NOT EXISTS idx_carrinho_usuario ON carrinho(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_promocoes_ativa ON promocoes_semana(ativa);
+CREATE INDEX IF NOT EXISTS idx_cupons_codigo ON cupons(codigo);
+CREATE INDEX IF NOT EXISTS idx_cupons_ativo ON cupons(ativo);
 
 -- =====================================================
 -- RLS (Row Level Security) Policies
@@ -243,6 +261,11 @@ CREATE POLICY "Usuário vê seu carrinho" ON carrinho FOR SELECT USING (
 CREATE POLICY "Usuário gerencia seu carrinho" ON carrinho FOR ALL USING (
   EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND usuario_id = carrinho.usuario_id)
 );
+
+-- Cupons: público para leitura (validação), admin para escrita
+ALTER TABLE cupons ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Cupons ativos para leitura" ON cupons FOR SELECT USING (true);
+CREATE POLICY "Admin pode gerenciar cupons" ON cupons FOR ALL USING (public.is_admin());
 
 -- =====================================================
 -- TRIGGER: criar perfil automaticamente ao cadastrar

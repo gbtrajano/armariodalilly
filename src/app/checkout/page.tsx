@@ -32,6 +32,12 @@ export default function CheckoutPage() {
   const [numero, setNumero] = useState("");
   const [complemento, setComplemento] = useState("");
 
+  // Coupon
+  const [codigoCupom, setCodigoCupom] = useState("");
+  const [cupomAplicado, setCupomAplicado] = useState<{ codigo: string; desconto: number; descricao: string | null } | null>(null);
+  const [cupomErro, setCupomErro] = useState("");
+  const [validandoCupom, setValidandoCupom] = useState(false);
+
   const supabase = createClient();
 
   useEffect(() => {
@@ -73,6 +79,39 @@ export default function CheckoutPage() {
     }
   }
 
+  async function validarCupom() {
+    if (!codigoCupom.trim()) return;
+    setValidandoCupom(true);
+    setCupomErro("");
+
+    const res = await fetch("/api/cupons/validar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codigo: codigoCupom.trim(), subtotal: totalValor() }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setCupomErro(data.error);
+      setCupomAplicado(null);
+    } else {
+      setCupomAplicado(data);
+      setCupomErro("");
+    }
+    setValidandoCupom(false);
+  }
+
+  function removerCupom() {
+    setCupomAplicado(null);
+    setCodigoCupom("");
+    setCupomErro("");
+  }
+
+  const subtotal = totalValor();
+  const desconto = cupomAplicado?.desconto || 0;
+  const totalComDesconto = Math.max(subtotal - desconto, 0);
+
   async function finalizarPedido(e: React.FormEvent) {
     e.preventDefault();
     setEnviando(true);
@@ -104,6 +143,8 @@ export default function CheckoutPage() {
           })),
           enderecoEntrega,
           metodoPagamento: "pix",
+          cupomCodigo: cupomAplicado?.codigo || null,
+          desconto: desconto || null,
         }),
       });
 
@@ -341,9 +382,64 @@ export default function CheckoutPage() {
             </li>
           ))}
         </ul>
-        <div className="mt-4 flex justify-between border-t border-neutral-100 pt-4 font-semibold">
-          <span>Total</span>
-          <span className="text-brand-700">{formatarPreco(totalValor())}</span>
+
+        {/* Coupon */}
+        <div className="mt-4 border-t border-neutral-100 pt-4">
+          {cupomAplicado ? (
+            <div className="flex items-center justify-between rounded-lg bg-green-50 px-3 py-2">
+              <div>
+                <span className="text-xs font-semibold text-green-700">
+                  <i className="fa-solid fa-ticket mr-1"></i>{cupomAplicado.codigo}
+                </span>
+                <p className="text-xs text-green-600">-{formatarPreco(desconto)}</p>
+              </div>
+              <button
+                onClick={removerCupom}
+                className="text-xs text-green-700 underline hover:text-green-900"
+              >
+                Remover
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex gap-2">
+                <input
+                  value={codigoCupom}
+                  onChange={(e) => setCodigoCupom(e.target.value.toUpperCase())}
+                  placeholder="Código do cupom"
+                  className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm uppercase outline-none focus:border-brand-500"
+                />
+                <button
+                  type="button"
+                  onClick={validarCupom}
+                  disabled={validandoCupom || !codigoCupom.trim()}
+                  className="rounded-lg bg-neutral-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-900 disabled:opacity-50"
+                >
+                  {validandoCupom ? "..." : "Aplicar"}
+                </button>
+              </div>
+              {cupomErro && (
+                <p className="mt-1 text-xs text-red-500">{cupomErro}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-3 space-y-1 border-t border-neutral-100 pt-3 text-sm">
+          <div className="flex justify-between text-neutral-500">
+            <span>Subtotal</span>
+            <span>{formatarPreco(subtotal)}</span>
+          </div>
+          {desconto > 0 && (
+            <div className="flex justify-between text-green-600">
+              <span>Desconto</span>
+              <span>-{formatarPreco(desconto)}</span>
+            </div>
+          )}
+          <div className="flex justify-between pt-1 font-semibold">
+            <span>Total</span>
+            <span className="text-brand-700">{formatarPreco(totalComDesconto)}</span>
+          </div>
         </div>
       </div>
     </div>

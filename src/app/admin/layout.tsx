@@ -9,6 +9,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard", icon: "fa-chart-line" },
   { href: "/admin/produtos", label: "Produtos", icon: "fa-shirt" },
   { href: "/admin/promocoes", label: "Promoções", icon: "fa-tags" },
+  { href: "/admin/cupons", label: "Cupons", icon: "fa-ticket" },
   { href: "/admin/pedidos", label: "Pedidos", icon: "fa-box" },
   { href: "/admin/usuarios", label: "Usuários", icon: "fa-users" },
 ];
