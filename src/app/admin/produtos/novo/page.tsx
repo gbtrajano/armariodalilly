@@ -62,24 +62,23 @@ export default function NovoProdutoPage() {
     let imageUrl = form.imagem_principal;
 
     if (imagemArquivo) {
-      const fileExt = imagemArquivo.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const formData = new FormData();
+      formData.append('file', imagemArquivo);
 
-      const { error: uploadError } = await supabase.storage
-        .from('produtos')
-        .upload(fileName, imagemArquivo);
+      const uploadRes = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-      if (uploadError) {
-        alert("Erro no upload da imagem. Verifique se o bucket 'produtos' existe e é público no Supabase: " + uploadError.message);
+      const uploadData = await uploadRes.json();
+
+      if (!uploadRes.ok) {
+        alert("Erro no upload da imagem: " + (uploadData.error || 'Erro desconhecido'));
         setSalvando(false);
         return;
       }
-      
-      const { data: { publicUrl } } = supabase.storage
-        .from('produtos')
-        .getPublicUrl(fileName);
 
-      imageUrl = publicUrl;
+      imageUrl = uploadData.url;
     }
 
     const slug = gerarSlug(form.nome);
