@@ -139,56 +139,66 @@ CREATE INDEX IF NOT EXISTS idx_promocoes_ativa ON promocoes_semana(ativa);
 -- RLS (Row Level Security) Policies
 -- =====================================================
 
+-- Função auxiliar: verifica se o usuário atual é admin
+-- SECURITY DEFINER garante que a função roda fora do RLS, evitando recursão
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM usuarios
+    WHERE id = auth.uid() AND admin = true
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
 -- Produtos: público para leitura, admin para escrita
 ALTER TABLE produtos ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Produtos públicos para leitura" ON produtos FOR SELECT USING (true);
 CREATE POLICY "Admin pode inserir produtos" ON produtos FOR INSERT WITH CHECK (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 CREATE POLICY "Admin pode atualizar produtos" ON produtos FOR UPDATE USING (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 CREATE POLICY "Admin pode deletar produtos" ON produtos FOR DELETE USING (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 
 -- Produto Tamanhos: público para leitura, admin para escrita
 ALTER TABLE produto_tamanhos ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Tamanhos públicos para leitura" ON produto_tamanhos FOR SELECT USING (true);
 CREATE POLICY "Admin pode gerenciar tamanhos" ON produto_tamanhos FOR ALL USING (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 
 -- Produto Fotos: público para leitura, admin para escrita
 ALTER TABLE produto_fotos ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Fotos públicas para leitura" ON produto_fotos FOR SELECT USING (true);
 CREATE POLICY "Admin pode gerenciar fotos" ON produto_fotos FOR ALL USING (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 
 -- Promoções: público para leitura, admin para escrita
 ALTER TABLE promocoes_semana ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Promoções públicas para leitura" ON promocoes_semana FOR SELECT USING (true);
 CREATE POLICY "Admin pode gerenciar promoções" ON promocoes_semana FOR ALL USING (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 
 -- Promoção Produtos: público para leitura, admin para escrita
 ALTER TABLE promocao_produtos ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Promoção produtos públicos para leitura" ON promocao_produtos FOR SELECT USING (true);
 CREATE POLICY "Admin pode gerenciar promoção produtos" ON promocao_produtos FOR ALL USING (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 
--- Usuários: cada um vê seu próprio perfil
+-- Usuários: cada um vê seu próprio perfil, admin vê todos
 ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Usuário vê seu próprio perfil" ON usuarios FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Usuário atualiza seu próprio perfil" ON usuarios FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Admin vê todos os usuários" ON usuarios FOR SELECT USING (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 CREATE POLICY "Admin pode gerenciar usuários" ON usuarios FOR ALL USING (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 
 -- Endereços: cada um vê seus próprios endereços
@@ -206,10 +216,10 @@ CREATE POLICY "Usuário vê seus pedidos" ON pedidos FOR SELECT USING (
   EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND usuario_id = pedidos.usuario_id)
 );
 CREATE POLICY "Admin vê todos os pedidos" ON pedidos FOR SELECT USING (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 CREATE POLICY "Admin pode atualizar pedidos" ON pedidos FOR UPDATE USING (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 
 -- Pedido Itens: cada um vê seus próprios itens
@@ -222,7 +232,7 @@ CREATE POLICY "Usuário vê itens de seus pedidos" ON pedido_itens FOR SELECT US
   )
 );
 CREATE POLICY "Admin pode ver itens de qualquer pedido" ON pedido_itens FOR SELECT USING (
-  EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND admin = true)
+  public.is_admin()
 );
 
 -- Carrinho: cada um vê seu próprio carrinho
