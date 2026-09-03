@@ -2,33 +2,87 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
 
 export default function CadastroPage() {
+  const router = useRouter();
+  const supabase = createClient();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [termos, setTermos] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [sucesso, setSucesso] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErro("");
+
     if (senha !== confirmarSenha) {
-      alert("As senhas não coincidem.");
+      setErro("As senhas não coincidem.");
       return;
     }
     if (!termos) {
-      alert("Você precisa aceitar os termos de uso.");
+      setErro("Você precisa aceitar os termos de uso.");
       return;
     }
-    // TODO: integrar com backend de cadastro
-    console.log("Cadastro:", { nome, email, senha });
+
+    setCarregando(true);
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password: senha,
+      options: {
+        data: { name: nome },
+      },
+    });
+
+    if (error) {
+      setErro(error.message.includes("already registered")
+        ? "Este e-mail já está cadastrado."
+        : error.message);
+      setCarregando(false);
+      return;
+    }
+
+    setSucesso(true);
+    setCarregando(false);
   };
 
-  const handleGoogleSignup = () => {
-    // TODO: integrar com OAuth do Google
-    console.log("Cadastro com Google");
+  const handleGoogleSignup = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/perfil`,
+      },
+    });
   };
+
+  if (sucesso) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 text-center">
+        <div className="rounded-2xl border border-brand-100 bg-white p-8 shadow-sm">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-50">
+            <i className="fa-solid fa-check text-2xl text-green-600"></i>
+          </div>
+          <h1 className="text-2xl font-serif font-semibold text-neutral-900">Conta criada!</h1>
+          <p className="mt-2 text-sm text-neutral-500">
+            Verifique seu e-mail para confirmar o cadastro. Depois, faça login normalmente.
+          </p>
+          <button
+            onClick={() => router.push("/perfil")}
+            className="mt-6 rounded-full bg-brand-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-brand-700"
+          >
+            Ir para o login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
@@ -44,6 +98,10 @@ export default function CadastroPage() {
             Cadastre-se para acompanhar seus pedidos e receber novidades.
           </p>
         </div>
+
+        {erro && (
+          <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{erro}</div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -138,9 +196,10 @@ export default function CadastroPage() {
 
           <button
             type="submit"
-            className="w-full rounded-full bg-brand-600 py-3 text-sm font-semibold text-white transition hover:bg-brand-700"
+            disabled={carregando}
+            className="w-full rounded-full bg-brand-600 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
-            Criar conta
+            {carregando ? "Criando conta..." : "Criar conta"}
           </button>
         </form>
 
