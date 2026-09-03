@@ -76,6 +76,13 @@ export default function ContaPage() {
 
         <div className="mt-8 space-y-3">
           <Link
+            href="/perfil/pedidos"
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-brand-200 py-3 text-sm font-medium text-neutral-700 transition hover:bg-brand-50/50"
+          >
+            <i className="fa-solid fa-bag-shopping"></i>
+            Meus pedidos
+          </Link>
+          <Link
             href="/perfil/enderecos"
             className="flex w-full items-center justify-center gap-2 rounded-full border border-brand-200 py-3 text-sm font-medium text-neutral-700 transition hover:bg-brand-50/50"
           >
