@@ -39,3 +39,18 @@ export interface MedidaTamanho {
   cintura: number;
   quadril: number;
 }
+
+export interface Endereco {
+  id: string;
+  usuario_id: string;
+  label: string;
+  rua: string;
+  numero: string;
+  complemento: string | null;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  cep: string;
+  padrao: boolean;
+  criado_em: string;
+}
