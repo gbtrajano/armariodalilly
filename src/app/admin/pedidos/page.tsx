@@ -8,6 +8,7 @@ interface Pedido {
   status: string;
   valor_total: number;
   criado_em: string;
+  endereco_entrega: string | { rua?: string; numero?: string; bairro?: string; cidade?: string; estado?: string; cep?: string; complemento?: string; [key: string]: unknown } | null;
   usuarios: { nome: string; email: string }[] | null;
 }
 
@@ -32,7 +33,7 @@ export default function AdminPedidosPage() {
   async function carregarPedidos() {
     let query = supabase
       .from("pedidos")
-      .select("id, status, valor_total, criado_em, usuarios(nome, email)")
+      .select("id, status, valor_total, criado_em, endereco_entrega, usuarios(nome, email)")
       .order("criado_em", { ascending: false });
 
     if (filtroStatus) {
@@ -107,6 +108,16 @@ export default function AdminPedidosPage() {
                   <p className="mt-1 text-sm text-neutral-500">
                     {pedido.usuarios?.[0]?.nome || "Usuário"} — {pedido.usuarios?.[0]?.email}
                   </p>
+                  {pedido.endereco_entrega && (
+                    <p className="mt-1 flex items-start gap-1.5 text-xs text-neutral-600">
+                      <i className="fa-solid fa-location-dot mt-0.5 text-neutral-400"></i>
+                      <span>
+                        {typeof pedido.endereco_entrega === 'string'
+                          ? pedido.endereco_entrega
+                          : [pedido.endereco_entrega.rua, pedido.endereco_entrega.numero, pedido.endereco_entrega.complemento, pedido.endereco_entrega.bairro, pedido.endereco_entrega.cidade, pedido.endereco_entrega.estado].filter(Boolean).join(', ')}
+                      </span>
+                    </p>
+                  )}
                   <p className="text-xs text-neutral-400">{formatarData(pedido.criado_em)}</p>
                 </div>
 

@@ -35,7 +35,7 @@ export default function CheckoutPage() {
             tamanho: item.tamanho,
             quantidade: item.quantidade,
           })),
-          enderecoEntrega: endereco,
+          enderecoEntrega: { completo: endereco },
           metodoPagamento,
         }),
       });
