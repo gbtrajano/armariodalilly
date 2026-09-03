@@ -88,27 +88,24 @@ export default function EditarProdutoPage() {
     let imageUrl = form.imagem_principal;
 
     if (imagemArquivo) {
-      const formData = new FormData();
-      formData.append('file', imagemArquivo);
-      
-      try {
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await res.json();
-        if (data.success) {
-          imageUrl = data.url;
-        } else {
-          alert("Erro no upload da imagem: " + data.message);
-          setSalvando(false);
-          return;
-        }
-      } catch (error) {
-        alert("Erro no upload da imagem");
+      const fileExt = imagemArquivo.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('produtos')
+        .upload(fileName, imagemArquivo);
+
+      if (uploadError) {
+        alert("Erro no upload da imagem. Verifique se o bucket 'produtos' existe e é público no Supabase: " + uploadError.message);
         setSalvando(false);
         return;
       }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('produtos')
+        .getPublicUrl(fileName);
+
+      imageUrl = publicUrl;
     }
 
     await supabase
