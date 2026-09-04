@@ -37,13 +37,29 @@ export default function AdminProdutosPage() {
   }
 
   async function toggleAtivo(id: string, ativo: boolean) {
-    await supabase.from("produtos").update({ ativo: !ativo }).eq("id", id);
+    const res = await fetch("/api/admin/produtos", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ativo: !ativo }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || "Erro ao atualizar produto.");
+      return;
+    }
     carregarProdutos();
   }
 
   async function excluirProduto(id: string) {
     if (!confirm("Tem certeza que deseja excluir este produto?")) return;
-    await supabase.from("produtos").delete().eq("id", id);
+    const res = await fetch(`/api/admin/produtos?id=${id}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || "Erro ao excluir produto.");
+      return;
+    }
     carregarProdutos();
   }
 
