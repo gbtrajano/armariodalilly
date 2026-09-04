@@ -45,6 +45,17 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // 1. Remover itens de pedido associados ao produto
+    const { error: itensError } = await auth.adminClient
+      .from("pedido_itens")
+      .delete()
+      .eq("produto_id", id);
+
+    if (itensError) {
+      console.error("[admin/produtos] Erro ao excluir itens de pedido:", itensError);
+    }
+
+    // 2. Excluir o produto (cascata para tamanhos, fotos, promoções, carrinho)
     const { error } = await auth.adminClient
       .from("produtos")
       .delete()
